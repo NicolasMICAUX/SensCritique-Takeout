@@ -7,36 +7,49 @@ from senscritique.utils import get_base_url, get_url_for_liste, read_soup_result
 
 def get_listes_url(user_name, page_no=1):
     url = (
-        get_base_url(user_name=user_name) + 'listes/all/all/likes/page-' + str(page_no)
+        get_base_url(user_name=user_name) + "listes/all/all/likes/page-" + str(page_no)
     )
     return url
 
 
-def parse_listes_page(user_name='wok', page_no=1, verbose=False):
+def parse_listes_page(user_name="wok", page_no=1, verbose=False):
     url = get_listes_url(user_name=user_name, page_no=page_no)
     print(url)
-    soup = BeautifulSoup(requests.get(url).content, 'lxml')
 
-    collection_items = soup.find_all('li', {'class': 'elth-thumbnail by3'})
+    # Add headers to avoid Cloudflare blocking
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, "lxml")
+
+    collection_items = soup.find_all("li", {"class": "elth-thumbnail by3"})
 
     listes_data = {}
     for item in collection_items:
-        category = item.find_all('span', {'class': 'elth-universe-label'})
-        overview = item.find_all('a', {'class': 'elth-thumbnail-title'})
+        category = item.find_all("span", {"class": "elth-universe-label"})
+        overview = item.find_all("a", {"class": "elth-thumbnail-title"})
 
-        link = overview[0].attrs['href']
+        link = overview[0].attrs["href"]
 
-        item_id = int(link.rsplit('/')[-1])
+        item_id = int(link.rsplit("/")[-1])
 
         listes_data[item_id] = {}
-        listes_data[item_id]['category'] = read_soup_result(category)
-        listes_data[item_id]['name'] = read_soup_result(overview)
-        listes_data[item_id]['link'] = link
+        listes_data[item_id]["category"] = read_soup_result(category)
+        listes_data[item_id]["name"] = read_soup_result(overview)
+        listes_data[item_id]["link"] = link
 
         print(
-            'List n°{}: {}'.format(
+            "List n°{}: {}".format(
                 item_id,
-                listes_data[item_id]['name'],
+                listes_data[item_id]["name"],
             ),
         )
 
@@ -46,12 +59,12 @@ def parse_listes_page(user_name='wok', page_no=1, verbose=False):
         )
         num_pages = get_num_pages(full_review_url)
 
-        listes_data[item_id]['elements'] = {}
+        listes_data[item_id]["elements"] = {}
 
         for page_no_within_list in range(1, num_pages + 1):
             if verbose:
                 print(
-                    'Page n°{}/{}:'.format(
+                    "Page n°{}/{}:".format(
                         page_no_within_list,
                         num_pages,
                     ),
@@ -61,18 +74,31 @@ def parse_listes_page(user_name='wok', page_no=1, verbose=False):
                 item_id_for_liste=item_id,
                 page_no_within_list=page_no_within_list,
             )
-            full_soup = BeautifulSoup(requests.get(current_url).content, 'lxml')
 
-            description = full_soup.find_all('div', {'data-rel': 'list-description'})
-            listes_data[item_id]['description'] = read_soup_result(description)
+            # Add headers to avoid Cloudflare blocking
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+            }
 
-            review_items = full_soup.find_all('div', {'class': 'elli-content'})
+            response = requests.get(current_url, headers=headers)
+            full_soup = BeautifulSoup(response.content, "lxml")
+
+            description = full_soup.find_all("div", {"data-rel": "list-description"})
+            listes_data[item_id]["description"] = read_soup_result(description)
+
+            review_items = full_soup.find_all("div", {"class": "elli-content"})
 
             for review_item in review_items:
-                soup_content = review_item.find_all('a', {'class': 'elco-anchor'})
+                soup_content = review_item.find_all("a", {"class": "elco-anchor"})
                 soup_comment = review_item.find_all(
-                    'div',
-                    {'class': 'elli-annotation-content'},
+                    "div",
+                    {"class": "elli-annotation-content"},
                 )
 
                 element = get_item_id(soup_content)
@@ -81,14 +107,14 @@ def parse_listes_page(user_name='wok', page_no=1, verbose=False):
 
                 if verbose:
                     print(
-                        '-   item n°{}: {}'.format(
+                        "-   item n°{}: {}".format(
                             element,
                             name,
                         ),
                     )
 
-                listes_data[item_id]['elements'][element] = {}
-                listes_data[item_id]['elements'][element]['name'] = name
-                listes_data[item_id]['elements'][element]['comment'] = comment
+                listes_data[item_id]["elements"][element] = {}
+                listes_data[item_id]["elements"][element]["name"] = name
+                listes_data[item_id]["elements"][element]["comment"] = comment
 
     return listes_data
